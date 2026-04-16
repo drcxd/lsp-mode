@@ -5306,20 +5306,28 @@ Added to `after-revert-hook'."
         (lsp--revert-buffer-in-progress nil))
     (lsp-on-change 0 n n)))
 
+(defun lsp--is-indirect-buffer (&optional buffer)
+  "Return nil if the buffer is not an indirect buffer.
+
+If BUFFER is nil, check the buffer returned by `lsp-current-buffer'."
+  (buffer-base-buffer (or buffer
+                          (lsp-current-buffer))))
+
 (defun lsp--text-document-did-close (&optional keep-workspace-alive)
   "Executed when the file is closed, added to `kill-buffer-hook'.
 
 If KEEP-WORKSPACE-ALIVE is non-nil, do not shutdown the workspace
 if it's closing the last buffer in the workspace."
-  (lsp-foreach-workspace
-   (cl-callf2 delq (lsp-current-buffer) (lsp--workspace-buffers lsp--cur-workspace))
-   (with-demoted-errors "Error sending didClose notification in ‘lsp--text-document-did-close’: %S"
-     (lsp-notify "textDocument/didClose"
-                 `(:textDocument ,(lsp--text-document-identifier))))
-   (when (and (not lsp-keep-workspace-alive)
-              (not keep-workspace-alive)
-              (not (lsp--workspace-buffers lsp--cur-workspace)))
-     (lsp--shutdown-workspace))))
+  (if (not (lsp--is-indirect-buffer))
+      (lsp-foreach-workspace
+       (cl-callf2 delq (lsp-current-buffer) (lsp--workspace-buffers lsp--cur-workspace))
+       (with-demoted-errors "Error sending didClose notification in ‘lsp--text-document-did-close’: %S"
+         (lsp-notify "textDocument/didClose"
+                     `(:textDocument ,(lsp--text-document-identifier))))
+       (when (and (not lsp-keep-workspace-alive)
+                  (not keep-workspace-alive)
+                  (not (lsp--workspace-buffers lsp--cur-workspace)))
+         (lsp--shutdown-workspace)))))
 
 (defun lsp--will-save-text-document-params (reason)
   (list :textDocument (lsp--text-document-identifier)
