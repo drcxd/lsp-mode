@@ -2422,7 +2422,7 @@ The result format is vector [_ errors warnings infos hints] or nil."
   "Request new diagnostics for the current file within WORKSPACE.
 This is only executed if the server supports pull diagnostics."
   (when (lsp-feature? "textDocument/diagnostic")
-    (let ((path (lsp--fix-path-casing (buffer-file-name))))
+    (let ((path (lsp--fix-path-casing (lsp--get-buffer-name))))
       (lsp-request-async "textDocument/diagnostic"
                          (list :textDocument (lsp--text-document-identifier))
                          (-lambda ((&DocumentDiagnosticReport :kind :items?))
@@ -5381,11 +5381,16 @@ identifier and the position respectively."
   (list :textDocument (or identifier (lsp--text-document-identifier))
         :position (or position (lsp--cur-position))))
 
+(defun lsp--get-buffer-name ()
+  (let* ((buf (current-buffer))
+         (bbuf (buffer-base-buffer buf)))
+    (buffer-file-name (or bbuf buf))))
+
 (defun lsp--get-buffer-diagnostics ()
   "Return buffer diagnostics."
   (gethash (or
             (plist-get lsp--virtual-buffer :buffer-file-name)
-            (lsp--fix-path-casing (buffer-file-name)))
+            (lsp--fix-path-casing (lsp--get-buffer-name)))
            (lsp-diagnostics t)))
 
 (defun lsp-cur-line-diagnostics ()
